@@ -32,7 +32,7 @@ pub const Sha1 = struct {
         };
     }
 
-    pub fn update(self: *Sha1, gpa: std.mem.Allocator, data: []const u8) !void {
+    pub fn update(self: *Sha1, allocator: std.mem.Allocator, data: []const u8) !void {
         var remaining = data;
         while (remaining.len > 0) {
             const push_len = @min(
@@ -40,7 +40,7 @@ pub const Sha1 = struct {
                 remaining.len,
             );
 
-            try self.block.appendSlice(gpa, remaining[0..push_len]);
+            try self.block.appendSlice(allocator, remaining[0..push_len]);
             remaining = if (push_len == remaining.len) "" else remaining[push_len..];
 
             if (self.block.items.len == block_bytes) {
@@ -51,7 +51,7 @@ pub const Sha1 = struct {
         self.message_len_bytes += data.len;
     }
 
-    pub fn final(self: *Sha1, gpa: std.mem.Allocator) ![20]u8 {
+    pub fn final(self: *Sha1, allocator: std.mem.Allocator) ![20]u8 {
         if (self.block.items.len == block_bytes) {
             self.hashBlock();
         }
@@ -62,7 +62,7 @@ pub const Sha1 = struct {
         }
 
         const num_zeroes = block_bytes - 8 - self.block.items.len;
-        const zeroes = try self.block.addManyAsSlice(gpa, num_zeroes);
+        const zeroes = try self.block.addManyAsSlice(allocator, num_zeroes);
         @memset(zeroes, 0);
 
         var size_buf: [8]u8 = undefined;
@@ -72,7 +72,7 @@ pub const Sha1 = struct {
             self.message_len_bytes * 8,
             .big,
         );
-        try self.block.appendSlice(gpa, &size_buf);
+        try self.block.appendSlice(allocator, &size_buf);
 
         self.hashBlock();
 
@@ -164,5 +164,39 @@ pub const Sha1 = struct {
             60...79 => b ^ c ^ d,
             else => unreachable,
         };
+    }
+
+    pub fn hmac(allocator: std.mem.Allocator, key: []const u8, data: []const u8) ![20]u8 {
+        // https://www.rfc-editor.org/info/rfc2104/#section-2
+
+        var k_prime: [Sha1.block_bytes]u8 = @splat(0);
+
+        std.debug.assert(key.len <= Sha1.block_bytes);
+
+        @memcpy(k_prime[0..key.len], key);
+
+        const ipad: u8 = 0x36;
+        for (&k_prime) |*b| {
+            b.* ^= ipad;
+        }
+
+        var inner_hash_computer: Sha1 = undefined;
+        inner_hash_computer.initPinned();
+        try inner_hash_computer.update(allocator, &k_prime);
+        try inner_hash_computer.update(allocator, data);
+        const inner_hash = try inner_hash_computer.final(allocator);
+
+        const opad = ipad ^ 0x5c;
+        for (&k_prime) |*b| {
+            b.* ^= opad;
+        }
+
+        var outer_hash_computer: Sha1 = undefined;
+        outer_hash_computer.initPinned();
+        try outer_hash_computer.update(allocator, &k_prime);
+        try outer_hash_computer.update(allocator, &inner_hash);
+        const ret = try outer_hash_computer.final(allocator);
+
+        return ret;
     }
 };
