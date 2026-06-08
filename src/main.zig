@@ -15,7 +15,7 @@ pub fn main(init: std.process.Init) !void {
     const input = args[1];
     const key = try decodeString(allocator, input);
 
-    const totp = try otp.totp(allocator, io, key);
+    const totp = otp.totp(io, key);
 
     var buf: [1024]u8 = undefined;
     var writer = std.Io.File.stdout().writer(io, &buf);

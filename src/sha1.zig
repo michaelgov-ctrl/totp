@@ -1,5 +1,7 @@
 const std = @import("std");
 
+// keeping this for posterity because it was a fun experience,
+// but Sha1 is in std.crypto for now.
 pub const Sha1 = struct {
     // https://www.rfc-editor.org/info/rfc3174/
 
