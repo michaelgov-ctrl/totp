@@ -1,6 +1,7 @@
 const std = @import("std");
 const base32 = @import("base32.zig");
 const otp = @import("otp.zig");
+const store = @import("store.zig");
 const term = @import("terminal.zig");
 
 // https://www.youtube.com/watch?v=-d2sBd_ZJOk
@@ -36,6 +37,7 @@ const term = @import("terminal.zig");
 // }
 
 pub fn main(init: std.process.Init) !void {
+    const allocator = init.gpa;
     const io = init.io;
 
     var stdin_buf: [1024]u8 = undefined;
@@ -46,8 +48,29 @@ pub fn main(init: std.process.Init) !void {
     var stdout_writer = std.Io.File.stdout().writer(io, &stdout_buf);
     const stdout = &stdout_writer.interface;
 
-    const secret = try term.promptSecret("enter secret: ", stdin, stdout);
+    const password = try term.promptSecret("enter password: ", stdin, stdout);
 
-    try stdout.print("secret: {s}\n", .{secret});
+    try stdout.print("secret: {s}\n", .{password});
+    try stdout.flush();
+
+    const secret_plaintext = "testing 123";
+
+    try store.encryptToFile(
+        allocator,
+        io,
+        "test.enc",
+        password,
+        secret_plaintext,
+    );
+
+    const content = try store.decryptFromFile(
+        allocator,
+        io,
+        "test.enc",
+        password,
+    );
+    defer allocator.free(content);
+
+    try stdout.print("{s}\n", .{content});
     try stdout.flush();
 }
