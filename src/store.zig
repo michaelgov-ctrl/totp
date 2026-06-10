@@ -31,6 +31,8 @@ pub const AppEntryList = struct {
 
     pub fn append(self: *Self, allocator: std.mem.Allocator, app_entry: AppEntry) !void {
         for (self.list.items) |entry| {
+            // app entries should be unique by the name property
+            // TODO: make list a hashmap style thing later
             if (std.mem.eql(u8, app_entry.name, entry.name)) {
                 return error.AppEntryNameExists;
             }
