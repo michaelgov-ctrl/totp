@@ -53,24 +53,35 @@ pub fn main(init: std.process.Init) !void {
     try stdout.print("secret: {s}\n", .{password});
     try stdout.flush();
 
-    const secret_plaintext = "testing 123";
+    const filename = "ael.json";
 
-    try store.encryptToFile(
+    var in = store.AppEntryList.init();
+    defer in.deinit(allocator);
+
+    in.decryptFromFile(
         allocator,
         io,
-        "test.enc",
+        filename,
         password,
-        secret_plaintext,
-    );
+    ) catch {
+        // maybe don't care if this fails, yes the file could later be overwritten..
+    };
 
-    const content = try store.decryptFromFile(
+    for (in.list.items) |entry| {
+        std.debug.print("in - name: {s}, key: {s}\n", .{ entry.name, entry.key });
+    }
+
+    const new_entry = store.AppEntry.init("yahoo", "dopeoplestilluseyahoo?");
+    try in.append(allocator, new_entry);
+
+    for (in.list.items) |entry| {
+        std.debug.print("out - name: {s}, key: {s}\n", .{ entry.name, entry.key });
+    }
+
+    try in.encryptToFile(
         allocator,
         io,
-        "test.enc",
+        filename,
         password,
     );
-    defer allocator.free(content);
-
-    try stdout.print("{s}\n", .{content});
-    try stdout.flush();
 }
