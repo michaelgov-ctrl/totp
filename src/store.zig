@@ -1,5 +1,5 @@
 const std = @import("std");
-
+const Aes256Gcm = std.crypto.aead.aes_gcm.Aes256Gcm;
 // look into std.crypto.nacl.SecretBox
 
 pub const AppEntry = struct {
@@ -71,25 +71,43 @@ pub const AppEntryList = struct {
         path: []const u8,
         password: []const u8,
     ) !void {
-        // encrypt AppEntryList to ciphertext
-        _ = allocator;
-        _ = password;
-        const ciphertext = self.list.items;
-
         var file = try std.Io.Dir.cwd().createFile(io, path, .{
             .truncate = true,
         });
         defer file.close(io);
 
-        var file_buf: [1024]u8 = undefined;
-        var file_writer = file.writer(io, &file_buf);
-        const file_out = &file_writer.interface;
-
-        try file_out.print("{f}\n", .{std.json.fmt(
-            ciphertext,
+        var out = std.Io.Writer.Allocating.init(allocator);
+        try std.json.Stringify.value(
+            self.list.items,
             .{ .whitespace = .indent_2 },
-        )});
-        try file_out.flush();
+            &out.writer,
+        );
+        const json_string = try out.toOwnedSlice();
+        std.debug.print("{s}\n", .{json_string});
+
+        // encrypt json here
+        _ = password;
+        try file.writeStreamingAll(io, json_string);
+
+        // var file_buf: [1024]u8 = undefined;
+        // var file_writer = file.writer(io, &file_buf);
+        // const file_out = &file_writer.interface;
+
+        // try file_out.print("{f}\n", .{std.json.fmt(
+        //     ciphertext,
+        //     .{ .whitespace = .indent_2 },
+        // )});
+        // try file_out.flush();
+
+        // var out = std.Io.Writer.Allocating.init(allocator);
+        // try std.json.Stringify.value(
+        //     ciphertext,
+        //     .{ .whitespace = .indent_2 },
+        //     &out.writer,
+        // );
+        // const arr = try out.toOwnedSlice();
+
+        // std.debug.print("{s}\n", .{arr});
     }
 
     pub fn decryptFromFile(
@@ -114,3 +132,13 @@ pub const AppEntryList = struct {
         try self.parseJsonArray(allocator, content);
     }
 };
+
+fn encrypt(plaintext: []const u8, key: []const u8) !void {
+    if (key.len != Aes256Gcm.key_length) {
+        return error.InvalidKeyLength;
+    }
+
+    // setup nonce and the like...
+
+    Aes256Gcm.encrypt();
+}

@@ -71,7 +71,7 @@ pub fn main(init: std.process.Init) !void {
         std.debug.print("in - name: {s}, key: {s}\n", .{ entry.name, entry.key });
     }
 
-    const new_entry = store.AppEntry.init("yahoo", "dopeoplestilluseyahoo?");
+    const new_entry = store.AppEntry.init("yeet", "yote");
     try in.append(allocator, new_entry);
 
     for (in.list.items) |entry| {
@@ -81,7 +81,7 @@ pub fn main(init: std.process.Init) !void {
     try in.encryptToFile(
         allocator,
         io,
-        filename,
+        "out",
         password,
     );
 }
